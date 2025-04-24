@@ -176,3 +176,4 @@ cython_debug/
 # don't push the dataset
 data/
 figs/
+tmp/
