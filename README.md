@@ -1,2 +1,2 @@
 # eeg-alcoholics
-kaggle dataset
+[kaggle dataset](https://www.kaggle.com/datasets/nnair25/Alcoholics)
