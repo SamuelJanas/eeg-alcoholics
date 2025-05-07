@@ -70,3 +70,5 @@ class simple_EEGNet(nn.Module):
         x = x.view(x.size(0), -1)   # flatten
         x = self.classifier(x)     # (B, num_classes)
         return F.log_softmax(x, dim=1)
+
+# TODO: DATA SETS AND TRAINING
