@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # architecture from: https://arxiv.org/pdf/1611.08024
-class simple_EEGNet(nn.Module):
+class EEGNet(nn.Module):
     def __init__(self, 
                  num_channels=64, 
                  num_time_points=128, 
@@ -17,7 +17,7 @@ class simple_EEGNet(nn.Module):
                  D=2, 
                  F2=16, 
                  dropout_rate=0.5):
-        super(simple_EEGNet, self).__init__()
+        super(EEGNet, self).__init__()
 
         self.F1 = F1
         self.D = D
