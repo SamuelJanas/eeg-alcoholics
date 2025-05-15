@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.metrics import classification_report, roc_auc_score, accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit
 
 def main():
     alcoholic_features = pd.read_csv("data/alcoholic_features.csv")
@@ -18,8 +18,22 @@ def main():
     X.columns = ['_'.join(col).strip() for col in X.columns.values]
     y = full_data.groupby(['subject', 'trial'])['group'].first()
 
-    # TODO: parametrize this (or not)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=23, train_size=0.7)
+    subject_labels = y.reset_index().groupby('subject')['group'].first()
+
+    # Stratified split at the subject level
+    splitter = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+    train_subjects_idx, test_subjects_idx = next(splitter.split(subject_labels.index, subject_labels.values))
+
+    train_subjects = subject_labels.index[train_subjects_idx]
+    test_subjects = subject_labels.index[test_subjects_idx]
+
+    # Mask by subject for train/test
+    train_mask = X.index.get_level_values('subject').isin(train_subjects)
+    test_mask = X.index.get_level_values('subject').isin(test_subjects)
+
+    X_train, X_test = X[train_mask], X[test_mask]
+    y_train, y_test = y[train_mask], y[test_mask]
+
     majority_class = y_train.value_counts().idxmax()
     y_majority_pred = [majority_class] * len(y_test)
     majority_accuracy = accuracy_score(y_test, y_majority_pred)
