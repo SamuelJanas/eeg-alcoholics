@@ -22,7 +22,7 @@ def butter_bandpass_filter(
 
     return y
 
-def apply_filter(df: pd.DataFrame) -> pd.DataFrame:
+def apply_bandpass_filter(df: pd.DataFrame) -> pd.DataFrame:
     #lowcut and highcut: Lower and upper cutoff frequencies for the bandpass filter (e.g., 1 Hz to 30 Hz).
     df['filtered_sensor_value'] = butter_bandpass_filter(df['sensor value'], 1, 30, FS)
     return df
@@ -68,8 +68,8 @@ def plot_filtered_data(df_alcohol, df_control, sensors):
             plt.savefig(f"figs/{sensor}.png")
 
 def main():
-    train_data = get_dataset(data_path="data/SMNI_CMI_TRAIN/")
-    test_data = get_dataset(data_path="data/SMNI_CMI_TEST/")
+    train_data = get_dataset(data_path="data/SMNI_CMI_TRAIN/Train/")
+    test_data = get_dataset(data_path="data/SMNI_CMI_TEST/Test/")
 
     combined_df = pd.concat([train_data,test_data], ignore_index=True)
 
@@ -78,11 +78,11 @@ def main():
     EEG_data_control = combined_df[combined_df['subject identifier'] == 'c']
 
     EEG_data_filtered = EEG_data.groupby(['name', 'trial number', 'sensor position']) \
-    .apply(apply_filter) \
+    .apply(apply_bandpass_filter) \
     .reset_index(drop=True)
 
     EEG_data_control_filtered = EEG_data_control.groupby(['name', 'trial number', 'sensor position']) \
-    .apply(apply_filter) \
+    .apply(apply_bandpass_filter) \
     .reset_index(drop=True)
 
     sensors_to_plot = ['AF1', 'FP1', 'CZ']

@@ -5,7 +5,7 @@ from scipy.signal import welch
 from antropy import sample_entropy, hjorth_params
 
 from load_data import get_dataset
-from explore import butter_bandpass_filter, apply_filter
+from explore import butter_bandpass_filter, apply_bandpass_filter
 
 def extract_all_features_per_trial(df: pd.DataFrame, subject_type: str, signal_column_name: str):
     all_features = []
@@ -98,11 +98,11 @@ def main():
     EEG_data_control = combined_df[combined_df['subject identifier'] == 'c']
 
     EEG_data_alcoholic_filtered = EEG_data_alcoholic.groupby(['name', 'trial number', 'sensor position']) \
-    .apply(apply_filter) \
+    .apply(apply_bandpass_filter) \
     .reset_index(drop=True)
 
     EEG_data_control_filtered = EEG_data_control.groupby(['name', 'trial number', 'sensor position']) \
-    .apply(apply_filter) \
+    .apply(apply_bandpass_filter) \
     .reset_index(drop=True)
 
     EEG_data_alcoholic_filtered_features = extract_all_features_per_trial(EEG_data_alcoholic_filtered, subject_type='a', signal_column_name='filtered_sensor_value')
