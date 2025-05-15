@@ -88,8 +88,8 @@ def extract_entropy_features(signal):
     }
 
 def main():
-    train_data = get_dataset(data_path="data/SMNI_CMI_TRAIN/")
-    test_data = get_dataset(data_path="data/SMNI_CMI_TEST/")
+    train_data = get_dataset(data_path="data/SMNI_CMI_TRAIN/Train/")
+    test_data = get_dataset(data_path="data/SMNI_CMI_TEST/Test/")
 
     combined_df = pd.concat([train_data,test_data], ignore_index=True)
 
@@ -108,8 +108,8 @@ def main():
     EEG_data_alcoholic_filtered_features = extract_all_features_per_trial(EEG_data_alcoholic_filtered, subject_type='a', signal_column_name='filtered_sensor_value')
     EEG_data_control_filtered_features = extract_all_features_per_trial(EEG_data_control_filtered, subject_type='c', signal_column_name='filtered_sensor_value')
 
-    EEG_data_alcoholic_filtered_features.to_csv('alcoholic_features.csv', index=False)
-    EEG_data_control_filtered_features.to_csv('control_features.csv', index=False)
+    EEG_data_alcoholic_filtered_features.to_csv('data/alcoholic_features.csv', index=False)
+    EEG_data_control_filtered_features.to_csv('data/control_features.csv', index=False)
 
 if __name__ == "__main__":
     main()
