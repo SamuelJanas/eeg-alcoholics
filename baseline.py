@@ -1,7 +1,8 @@
 import pandas as pd
 
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, roc_auc_score, accuracy_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import train_test_split
 
 def main():
@@ -18,17 +19,39 @@ def main():
     y = full_data.groupby(['subject', 'trial'])['group'].first()
 
     # TODO: parametrize this (or not)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42, train_size=0.7)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=23, train_size=0.7)
+    majority_class = y_train.value_counts().idxmax()
+    y_majority_pred = [majority_class] * len(y_test)
+    majority_accuracy = accuracy_score(y_test, y_majority_pred)
 
     print(f"Training on {len(X_train)} samples from a total of {len(X_train) + len(X_test)}")
 
     # TODO: sweep over parameters
-    clf = RandomForestClassifier()
+    clf = RandomForestClassifier(random_state=23)
     clf.fit(X_train, y_train)
 
     # === Evaluation ===
     y_pred = clf.predict(X_test)
+    y_proba = clf.predict_proba(X_test)[:, 1]
+
+    # binarize the labels
+    lb = LabelBinarizer()
+    y_test_bin = lb.fit_transform(y_test).ravel()
+
+    majority_class_bin = lb.transform([majority_class])[0][0]
+    y_majority_proba = [majority_class_bin] * len(y_test)
+
+    majority_auc = roc_auc_score(y_test_bin, y_majority_proba)
+    auc = roc_auc_score(y_test_bin, y_proba)
+
+    print("\n=== Majority Voting ===")
+    print(f"Majority class: {majority_class}")
+    print(f"Majority Accuracy: {majority_accuracy:.4f}")
+    print(f"Majority AUC: {majority_auc:.4f}")
+
+    print("\n=== Random Forest ===")
     print(classification_report(y_test, y_pred))
+    print(f"AUC: {auc}")
 
 if __name__ == "__main__":
     # This file assumes you have a calculated feature extraction information.
