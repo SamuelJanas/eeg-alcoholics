@@ -15,7 +15,9 @@ def extract_all_features_per_trial(df: pd.DataFrame, subject_type: str, signal_c
     for (name, trial, sensor), group in grouped:
         signal = group[signal_column_name].values
 
-        # Combine all feature sets
+        if np.all(signal == signal[0]) or np.std(signal) == 0:
+            continue
+
         features = {
             **extract_time_domain_features(signal),
             **extract_frequency_domain_features(signal, fs=256),
@@ -23,12 +25,11 @@ def extract_all_features_per_trial(df: pd.DataFrame, subject_type: str, signal_c
             **extract_hjorth_features(signal)
         }
 
-        # Add metadata
         features.update({
             'subject': name,
             'trial': trial,
             'sensor': sensor,
-            'group': subject_type  # 'a' for alcoholic, 'c' for control
+            'group': subject_type
         })
 
         all_features.append(features)
