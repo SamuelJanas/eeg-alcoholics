@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
-from load_data import get_dataset
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -93,17 +93,31 @@ def create_dataloaders(X, y, batch_size=32, val_split=0.2):
 
     return train_loader, val_loader
 
-def train_model(model, train_loader, val_loader, epochs=20, lr=1e-3, device='cpu'):
+def train_model(
+    model,
+    train_loader,
+    val_loader,
+    *,
+    epochs=50,
+    lr=1e-3,
+    device="cpu",
+    patience=10,
+    min_delta=0.0,
+):
+
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.NLLLoss()
 
     stats = {"train_loss": [], "val_loss": [], "val_acc": []}
 
-    for epoch in range(epochs):
-        model.train()
-        train_loss = 0.0
+    best_val_loss = float("inf")
+    best_state_dict = None
+    epochs_no_improve = 0
 
+    for epoch in range(1, epochs + 1):
+        model.train()
+        running_loss = 0.0
         for X_batch, y_batch in train_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
 
@@ -112,32 +126,52 @@ def train_model(model, train_loader, val_loader, epochs=20, lr=1e-3, device='cpu
             loss = criterion(output, y_batch)
             loss.backward()
             optimizer.step()
-            train_loss += loss.item()
+
+            running_loss += loss.item()
+
+        avg_train_loss = running_loss / len(train_loader)
 
         model.eval()
-        val_loss = 0.0
-        correct = 0
-
+        running_val_loss, correct = 0.0, 0
         with torch.no_grad():
             for X_batch, y_batch in val_loader:
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
                 output = model(X_batch)
                 loss = criterion(output, y_batch)
-                val_loss += loss.item()
+                running_val_loss += loss.item()
                 pred = output.argmax(dim=1)
                 correct += pred.eq(y_batch).sum().item()
 
-        avg_train_loss = train_loss / len(train_loader)
-        avg_val_loss = val_loss / len(val_loader)
+        avg_val_loss = running_val_loss / len(val_loader)
         val_acc = correct / len(val_loader.dataset)
 
         stats["train_loss"].append(avg_train_loss)
         stats["val_loss"].append(avg_val_loss)
         stats["val_acc"].append(val_acc)
 
-        print(f"Epoch {epoch+1}/{epochs} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Val Acc: {val_acc:.4f}")
+        print(
+            f"Epoch {epoch:03d}/{epochs} | "
+            f"Train {avg_train_loss:.4f} | "
+            f"Val {avg_val_loss:.4f} | Acc {val_acc:.4f}"
+        )
 
-    return stats
+        if avg_val_loss < best_val_loss - min_delta:
+            best_val_loss = avg_val_loss
+            best_state_dict = model.state_dict()
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve >= patience:
+                print(
+                    f"Early stop: no improvement in val-loss for "
+                    f"{patience} consecutive epochs."
+                )
+                break
+
+    if best_state_dict is not None:
+        model.load_state_dict(best_state_dict)
+
+    return model, stats
 
 def plot_metrics(stats):
     plt.figure(figsize=(10, 4))
