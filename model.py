@@ -82,9 +82,19 @@ class EEGDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
     
-def create_dataloaders(X, y, batch_size=32, val_split=0.2):
-    X_train, X_val, y_train, y_val = train_test_split(X, y, stratify=y, test_size=val_split)
+def create_dataloaders(X, y, id, batch_size=32, val_split=0.2):
+    unique_ids = np.unique(id)
+    train_ids, val_ids = train_test_split(unique_ids, test_size=val_split, stratify=None, random_state=24)
 
+    train_mask = np.isin(id, train_ids)
+    val_mask = np.isin(id, val_ids)
+
+    X_train, y_train = X[train_mask], y[train_mask]
+    X_val, y_val = X[val_mask], y[val_mask]
+
+    print(f"Train set unique IDs: {np.unique(id[train_mask])}")
+    print(f"Val set unique IDs: {np.unique(id[val_mask])}")
+    
     train_dataset = EEGDataset(X_train, y_train)
     val_dataset = EEGDataset(X_val, y_val)
 
