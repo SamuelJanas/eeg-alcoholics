@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
@@ -198,6 +199,8 @@ def plot_metrics(stats):
     plt.title("Accuracy")
 
     plt.tight_layout()
+    os.makedirs("figures", exist_ok=True)   
+    plt.savefig("figures/training_metrics.png")
     plt.show()
 
 def save_training_stats(stats, filename="training_stats.csv"):
