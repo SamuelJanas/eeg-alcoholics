@@ -71,6 +71,77 @@ class EEGNet(nn.Module):
         x = x.view(x.size(0), -1)   # flatten
         x = self.classifier(x)     # (B, num_classes)
         return F.log_softmax(x, dim=1)
+    
+# architecture from https://www.mdpi.com/2076-3425/12/6/778
+class CNN_BiLSTM(nn.Module):
+    def __init__(self,
+                 input_length=256,        # time points per trial
+                 num_channels=64,         # EEG channels
+                 num_classes=2,           # classification targets
+                 conv_channels=[64, 64, 128, 128],
+                 lstm_hidden=64,
+                 fc_dims=[256, 128, 64],
+                 dropout_rate=0.5):
+        super(CNN_BiLSTM, self).__init__()
+
+        # 1D convolutions over time axis, input: (B, C, T)
+        self.conv1 = nn.Conv1d(in_channels=num_channels, out_channels=conv_channels[0], kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2)
+
+        self.conv2 = nn.Conv1d(in_channels=conv_channels[0], out_channels=conv_channels[1], kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
+
+        self.conv3 = nn.Conv1d(in_channels=conv_channels[1], out_channels=conv_channels[2], kernel_size=3, padding=1)
+        self.relu3 = nn.ReLU()
+
+        self.conv4 = nn.Conv1d(in_channels=conv_channels[2], out_channels=conv_channels[3], kernel_size=3, padding=1)
+        self.relu4 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2)
+
+        # BiLSTM input: (B, T, Features)
+        reduced_length = input_length // 4  # due to 2 MaxPool1d layers (factor 2 each)
+        self.bi_lstm = nn.LSTM(input_size=conv_channels[3],
+                               hidden_size=lstm_hidden,
+                               num_layers=1,
+                               batch_first=True,
+                               bidirectional=True)
+
+        self.fc1 = nn.Linear(reduced_length * 2 * lstm_hidden, fc_dims[0])
+        self.drop1 = nn.Dropout(dropout_rate)
+        self.fc2 = nn.Linear(fc_dims[0], fc_dims[1])
+        self.drop2 = nn.Dropout(dropout_rate)
+        self.fc3 = nn.Linear(fc_dims[1], fc_dims[2])
+        self.drop3 = nn.Dropout(dropout_rate)
+        self.output = nn.Linear(fc_dims[2], num_classes)
+
+    def forward(self, x):
+        # x: (B, C, T)
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+
+        x = self.conv3(x)
+        x = self.relu3(x)
+
+        x = self.conv4(x)
+        x = self.relu4(x)
+        x = self.pool2(x)
+
+        # reshape for LSTM: (B, C, T) -> (B, T, C)
+        x = x.permute(0, 2, 1)
+        x, _ = self.bi_lstm(x)  # (B, T, 2 * hidden)
+
+        x = x.contiguous().view(x.size(0), -1)
+        x = self.drop1(F.relu(self.fc1(x)))
+        x = self.drop2(F.relu(self.fc2(x)))
+        x = self.drop3(F.relu(self.fc3(x)))
+        x = self.output(x)
+
+        return F.log_softmax(x, dim=1)
 
 class EEGDataset(Dataset):
     def __init__(self, X, y):
@@ -115,7 +186,6 @@ def train_model(
     patience=10,
     min_delta=0.0,
 ):
-
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.NLLLoss()
@@ -131,6 +201,9 @@ def train_model(
         running_loss = 0.0
         for X_batch, y_batch in train_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            
+            if model.__class__.__name__ == 'CNN_BiLSTM':
+                X_batch = X_batch.squeeze(1)
 
             optimizer.zero_grad()
             output = model(X_batch)
@@ -147,6 +220,10 @@ def train_model(
         with torch.no_grad():
             for X_batch, y_batch in val_loader:
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+
+                if model.__class__.__name__ == 'CNN_BiLSTM':
+                    X_batch = X_batch.squeeze(1)
+                
                 output = model(X_batch)
                 loss = criterion(output, y_batch)
                 running_val_loss += loss.item()
